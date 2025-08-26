@@ -1,0 +1,27 @@
+from selenium import webdriver
+from selenium.webdriver.common.by import By
+import time
+
+def main():
+    driver = webdriver.Chrome()
+    driver.get("http://localhost:3000/users/login")
+    time.sleep(2)
+
+    try:
+        elements = driver.find_element(By.XPATH, "/html/body/noscript")
+        content = elements.get_attribute("textContent").strip()
+
+        if any(keyword in content.lower() for keyword in ["flag", "ctf"]):
+            print(f"[!] 플래그 값: {content}")
+            with open("hardcoding_vuln.txt", "w", encoding="utf-8") as f:
+                f.write(f"[FLAG DETECTED] {content}\n")
+        else:
+            print("[+] 취약점 없음")
+
+    except Exception as e:
+        print(f"[ERROR] {e}")
+    finally:
+        driver.quit()
+
+if __name__ == "__main__":
+    main()
